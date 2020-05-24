@@ -39,6 +39,14 @@ Bounce debouncerPin11 = Bounce();
 
 void setup()
 {
+  delay(100);
+  Serial.begin(9600);
+  Serial.println("Matrix LED Version 1.0");
+  Serial.println("El pin 9 es el pin de datos");
+  Serial.println("Selector de colores por pines: 5, 6, 7, 8");
+  Serial.println("Selector de brillo por pines: 10 y 11");
+  Serial.println("9 colores disponibles rojo, verde, azul, morado, verde-azul, amarillo, blanco, rosa, naranja");
+  
   ns_matrix.begin();
   ns_matrix.setBrightness(brightnessIntensity[sizeBrightnessIntensity - 1]);  // range: 0 ~ 255
 

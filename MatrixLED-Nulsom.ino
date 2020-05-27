@@ -2,7 +2,12 @@
 #include <NS_Rainbow.h>
 
 #define PIN 9
-#define N_CELL 64
+#define NUMPIXELS 64
+
+NS_Rainbow pixels = NS_Rainbow(NUMPIXELS, PIN);
+
+Bounce debouncerPin10 = Bounce();
+Bounce debouncerPin11 = Bounce();
 
 const int RGBColorLeds[][3] = {
   {0, 0, 0}, //turn cells off
@@ -16,47 +21,46 @@ const int RGBColorLeds[][3] = {
   {255, 100, 100}, //pink
   {255, 85, 0} //orange
 };
+
 const int colorPin[] = {5, 6, 7, 8};
 const int brightnessPin[] = {10, 11};
 const int brightnessIntensity[] = {10, 25, 45, 60, 75, 80, 110, 150, 200, 255};
+const int flashColor[] = {1, 2, 3, 6, 7, 9};
 const int sizeColorPin = sizeof(colorPin) / sizeof(colorPin[0]);
-const int sizeBrightnessIntensity = sizeof(brightnessIntensity) / sizeof(brightnessIntensity[0]);
 const int rowsRGBColorLeds = sizeof(RGBColorLeds) / sizeof(RGBColorLeds[0]);
+const int sizeBrightnessIntensity = sizeof(brightnessIntensity) / sizeof(brightnessIntensity[0]);
 const int delayBounce = 5;
 const int delayBrightness = 150;
+const int delayFlash = 400;
 
-
+int i;
 int currentColor;
 int contador;
-
-// Parameter 1 = number of cells (max: 512)
-// Parameter 2 = Arduino pin number (default pin: 9)
-//NS_Rainbow ns_matrix = NS_Rainbow(N_CELL);
-NS_Rainbow ns_matrix = NS_Rainbow(N_CELL, PIN);
-
-Bounce debouncerPin10 = Bounce();
-Bounce debouncerPin11 = Bounce();
+int acumulador;
 
 void setup()
 {
   delay(100);
   Serial.begin(9600);
-  Serial.println("Matrix LED Version 1.0");
+  Serial.println("Matrix LED Nulsom Version 1.0");
   Serial.println("El pin 9 es el pin de datos");
   Serial.println("Selector de colores por pines: 5, 6, 7, 8");
   Serial.println("Selector de brillo por pines: 10 y 11");
-  Serial.println("9 colores disponibles rojo, verde, azul, morado, verde-azul, amarillo, blanco, rosa, naranja");
+  Serial.println("9 colores disponibles rojo [PIN 5], verde [PIN 6], azul [PIN 5+6], morado [PIN 7], verde-azul [PIN 5+7], amarillo [PIN 6+7], blanco[PIN 5+6+7], rosa [PIN 8], naranja [PIN 5+8]");
+  Serial.println("6 colores con flash disponibles rojo [PIN 5], verde [PIN 6], azul [PIN 5+6], amarillo [PIN 6+7], blanco[PIN 5+6+7], naranja [PIN 5+8]");
   
-  ns_matrix.begin();
-  ns_matrix.setBrightness(brightnessIntensity[sizeBrightnessIntensity - 1]);  // range: 0 ~ 255
+  pixels.begin();
+  pixels.setBrightness(128);
 
-  for (byte i = 0 ; i < ns_matrix.numCells(); i++) {
-    ns_matrix.setColor(i, 255, 255, 255);
-    ns_matrix.show();
+  for (i = 0; i < NUMPIXELS; i++)
+  {
+    pixels.setColor(i, 255, 255, 255);
+    pixels.show();
     delay(20);
   }
 
-  ns_matrix.clear();
+  pixels.clear();
+  pixels.show();
 
   // Pin 10 and Pin 11 prevents electrical pulse and multiple inputs
   pinMode(brightnessPin[0], INPUT_PULLUP);
@@ -67,11 +71,12 @@ void setup()
   debouncerPin11.attach(brightnessPin[1]);
   debouncerPin11.interval(delayBounce);
 
-  for (int i = 0; i < sizeColorPin; i++) {
+  for (i = 0; i < sizeColorPin; i++)
+  {
     pinMode(colorPin[i], INPUT);
   }
 
-  ns_matrix.setBrightness(brightnessIntensity[0]);
+  pixels.setBrightness(brightnessIntensity[0]);
 }
 
 void loop()
@@ -83,30 +88,34 @@ void loop()
   int debouncerState11 = debouncerPin11.read();
 
   //BRIGHTNESS SELECTOR BY PIN
-  if (debouncerState10 == LOW) {
-    if (contador <= 0) {
+  if (digitalRead(brightnessPin[0]) == LOW)
+  {
+    if (contador <= 0)
+    {
       contador = (sizeBrightnessIntensity - 1);
-      ns_matrix.setBrightness(brightnessIntensity[contador]);
+      pixels.setBrightness(brightnessIntensity[contador]);
       delay(delayBrightness);
     }
     else
     {
       contador--;
-      ns_matrix.setBrightness(brightnessIntensity[contador]);
+      pixels.setBrightness(brightnessIntensity[contador]);
       delay(delayBrightness);
     }
   }
 
-  if (debouncerState11 == LOW) {
-    if (contador + 1 < sizeBrightnessIntensity) {
+  if (digitalRead(brightnessPin[1]) == LOW)
+  {
+    if (contador + 1 < sizeBrightnessIntensity)
+    {
       contador++;
-      ns_matrix.setBrightness(brightnessIntensity[contador]);
+      pixels.setBrightness(brightnessIntensity[contador]);
       delay(delayBrightness);
     }
     else
     {
       contador = 0;
-      ns_matrix.setBrightness(brightnessIntensity[contador]);
+      pixels.setBrightness(brightnessIntensity[contador]);
       delay(delayBrightness);
     }
   }
@@ -114,39 +123,58 @@ void loop()
   //COLOR SELECTOR BY PIN
   if (digitalRead(colorPin[0]) == LOW)
   {
-    int acumulador = pow(2, 0);
+    acumulador = pow(2, 0);
     currentColor += acumulador;
     acumulador = 0;
   }
 
   if (digitalRead(colorPin[1]) == LOW)
   {
-    int acumulador = pow(2, 1);
+    acumulador = pow(2, 1);
     currentColor += acumulador;
     acumulador = 0;
   }
 
   if (digitalRead(colorPin[2]) == LOW)
   {
-    int acumulador = pow(2, 2);
+    acumulador = pow(2, 2);
     currentColor += acumulador;
     acumulador = 0;
   }
 
   if (digitalRead(colorPin[3]) == LOW)
   {
-    int acumulador = pow(2, 3);
+    acumulador = pow(2, 3);
     currentColor += acumulador;
     acumulador = 0;
   }
 
-  if (currentColor <= 9)
+  if (currentColor < rowsRGBColorLeds)
   {
-    for (int i = 0; i < ns_matrix.numCells(); i++)
+    for (i = 0; i < NUMPIXELS; i++)
     {
-      ns_matrix.setColor(i, RGBColorLeds[currentColor][0], RGBColorLeds[currentColor][1], RGBColorLeds[currentColor][2]);
-      ns_matrix.show();
+      pixels.setColor(i, RGBColorLeds[currentColor][0], RGBColorLeds[currentColor][1], RGBColorLeds[currentColor][2]);
+      pixels.show();
     }
+  }
+  else
+  {
+    currentColor -= rowsRGBColorLeds;
+    currentColor = flashColor[currentColor];
+
+    for (i = 0; i < NUMPIXELS; i++)
+    {
+      pixels.setColor(i, RGBColorLeds[currentColor][0], RGBColorLeds[currentColor][1], RGBColorLeds[currentColor][2]);
+    }
+    
+    pixels.show();
+
+    delay(delayFlash);
+
+    pixels.clear();
+    pixels.show();
+
+    delay(delayFlash);
   }
 
   currentColor = 0;
